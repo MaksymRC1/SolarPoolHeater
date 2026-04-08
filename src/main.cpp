@@ -51,7 +51,7 @@ const unsigned long debounceDelay = 50;
 unsigned long lastSensorRead = 0;
 unsigned long lastDisplayUpdate = 0;
 
-// ==================== ФУНКЦИИ (объявлены ДО setup) ====================
+// ==================== ФУНКЦИИ ====================
 
 void beep(int ms) {
   tone(BUZZER_PIN, 1000, ms);
@@ -170,14 +170,14 @@ void updateDisplay() {
     
     if (currentMode == AUTO) {
       lcd.print("AUTO ");
-      lcd.print(pumpState ? "[ON] " : "[OFF]");
+      lcd.print(pumpState ? "ON " : "OFF");
       lcd.print("dT:");
       lcd.print(deltaTemp, 1);
       lcd.print("/");
       lcd.print(deltaOn, 0);
     } else {
       lcd.print("MANUAL ");
-      lcd.print(pumpState ? "[ON] " : "[OFF]");
+      lcd.print(pumpState ? "ON " : "OFF");
       lcd.print("T:");
       lcd.print(tempIn, 1);
       lcd.print("/");
@@ -210,6 +210,7 @@ void updateDisplay() {
 // ==================== SETUP ====================
 void setup() {
   lcd.begin(16, 2);
+  Serial.begin(9600);
   
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(BUTTON_UP, INPUT_PULLUP);
@@ -220,6 +221,18 @@ void setup() {
   
   ds18b20.begin();
   dht.begin();
+  
+  // Диагностика DS18B20
+  int deviceCount = ds18b20.getDeviceCount();
+  Serial.print("Found ");
+  Serial.print(deviceCount);
+  Serial.println(" DS18B20 sensors");
+  
+  if (deviceCount == 0) {
+    lcd.clear();
+    lcd.print("No DS18B20!");
+    while(1); // остановка
+  }
   
   lcd.print("Solar Pool Heater");
   lcd.setCursor(0, 1);
@@ -238,6 +251,12 @@ void loop() {
     tempIn = ds18b20.getTempCByIndex(0);
     tempOut = ds18b20.getTempCByIndex(1);
     deltaTemp = tempOut - tempIn;
+    
+    // Диагностика в Serial Monitor
+    Serial.print("In: ");
+    Serial.print(tempIn);
+    Serial.print(" Out: ");
+    Serial.println(tempOut);
     
     tempOutside = dht.readTemperature();
     humidity = dht.readHumidity();

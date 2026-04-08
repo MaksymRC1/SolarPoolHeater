@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "author": "SolarPoolHeater",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-breadboard-half",
+      "id": "bb1",
+      "top": -51,
+      "left": 386.8,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-arduino-nano",
+      "id": "nano",
+      "top": 91.2,
+      "left": -230.9,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-lcd1602",
+      "id": "lcd1",
+      "top": -284.57,
+      "left": -243.2,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot1",
+      "top": -279.7,
+      "left": 105.4,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": -383.7,
+      "left": 282.6,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": -400.8,
+      "left": 462.6,
+      "attrs": { "volume": "0.1" }
+    },
+    {
+      "type": "wokwi-ds18b20",
+      "id": "temp1",
+      "top": -269.93,
+      "left": 378.48,
+      "attrs": { "deviceID": "111111111111", "name": "In" }
+    },
+    {
+      "type": "wokwi-ds18b20",
+      "id": "temp2",
+      "top": -269.93,
+      "left": 426.48,
+      "attrs": { "deviceID": "222222222222", "name": "Out" }
+    },
+    {
+      "type": "wokwi-relay-module",
+      "id": "relay1",
+      "top": -249.4,
+      "left": 652.8,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 207.8,
+      "left": -19.2,
+      "attrs": { "color": "green", "label": "+" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": 303.8,
+      "left": -19.2,
+      "attrs": { "color": "green", "label": "-" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": -14.4,
+      "left": 469.85,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": 119.45,
+      "left": 305.8,
+      "rotate": 270,
+      "attrs": { "value": "4.7k" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r3",
+      "top": -197.65,
+      "left": 240,
+      "attrs": { "value": "10k" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led2",
+      "top": -291.6,
+      "left": 829.4,
+      "attrs": { "color": "green" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r4",
+      "top": -177.6,
+      "left": 825.05,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    }
+  ],
+  "connections": [
+    ["dht1:GND", "bb1:tn.3", "black", ["v57.6", "h115.2"]],
+    ["temp1:GND", "bb1:tn.4", "black", ["v96", "h67.2"]],
+    ["temp2:GND", "bb1:tn.5", "black", ["v86.4", "h28.8"]],
+    ["relay1:GND", "bb1:tn.20", "black", ["h0"]],
+    ["pot1:GND", "bb1:tn.6", "black", ["v105.6", "h336", "v67.2", "h0"]],
+    ["lcd1:VSS", "bb1:tn.1", "black", ["v28.8", "h336", "v38.4", "h297.6"]],
+    ["lcd1:VDD", "bb1:tp.2", "green", ["v76.8", "h633.7"]],
+    ["lcd1:V0", "pot1:SIG", "gold", ["v57.6", "h66.9", "v-19.2", "h268.8"]],
+    ["nano:12", "lcd1:RS", "green", ["v-144", "h28.8"]],
+    ["lcd1:RW", "bb1:tn.7", "black", ["v96", "h662.3", "v-9.6"]],
+    ["lcd1:E", "nano:11", "green", ["v115.2", "h-38.4"]],
+    ["nano:5", "lcd1:D4", "green", ["v-134.4", "h9.6"]],
+    ["lcd1:D5", "nano:4", "green", ["v124.8", "h-28.7"]],
+    ["lcd1:D6", "nano:3", "green", ["v134.4", "h-28.6"]],
+    ["lcd1:D7", "nano:2", "green", ["v144", "h-28.5"]],
+    ["lcd1:K", "bb1:tn.10", "black", ["v105.6", "h259.2"]],
+    ["pot1:VCC", "bb1:tp.11", "red", ["v86.4", "h373.6"]],
+    ["nano:5V", "bb1:bp.1", "red", ["v28.8", "h528"]],
+    ["bb1:bp.25", "bb1:tp.25", "red", ["v0"]],
+    ["temp1:VCC", "bb1:bp.13", "red", ["v86.4", "h144"]],
+    ["temp2:VCC", "bb1:bp.14", "red", ["v76.8", "h115.2"]],
+    ["dht1:VCC", "bb1:tp.15", "red", ["v19.2", "h278.4", "v115.2"]],
+    ["nano:7", "dht1:SDA", "green", ["v-86.4", "h470.4", "v9.6"]],
+    ["r3:2", "dht1:SDA", "green", ["v0", "h8.4"]],
+    ["r3:1", "dht1:VCC", "green", ["v0"]],
+    [
+      "nano:8",
+      "relay1:IN",
+      "green",
+      ["v-96", "h384", "v-432", "h403.2", "v220.8"]
+    ],
+    ["relay1:VCC", "bb1:tp.21", "red", ["h-9.6", "v153.6", "h9.6"]],
+    ["bb1:tp.24", "relay1:COM", "red", ["v-114.9", "h116.8", "v-67.2"]],
+    ["relay1:NC", "led2:C", "green", ["v0"]],
+    ["r4:1", "led2:A", "green", ["h0"]],
+    ["bb1:tn.24", "bb1:bn.24", "black", ["v0"]],
+    ["bb1:bn.25", "r4:2", "black", ["v-1.3", "h164.8"]],
+    ["btn2:2.r", "bb1:bn.5", "black", ["h0"]],
+    ["btn1:2.r", "bb1:bn.4", "black", ["h0"]],
+    ["nano:9", "btn1:1.l", "green", ["v-19.2", "h-105.6", "v144"]],
+    ["nano:10", "btn2:1.l", "green", ["v-48", "h-105.6", "v249.6", "h9.6"]],
+    ["bz1:1", "bb1:tn.16", "black", ["v57.6", "h96"]],
+    ["nano:13", "bz1:2", "green", ["v28.8", "h-172.8", "v-489.6", "h9.6"]],
+    ["r1:2", "lcd1:A", "green", ["h0"]],
+    ["r1:1", "bb1:tp.8", "", ["$bb"]],
+    ["r1:2", "bb1:10t.c", "", ["$bb"]],
+    ["temp1:DQ", "bb1:1b.f", "green", ["v0"]],
+    ["temp2:DQ", "bb1:1b.g", "green", ["v0"]],
+    ["r2:2", "bb1:1b.i", "green", ["h0"]],
+    ["r2:1", "bb1:bp.2", "green", ["h0"]],
+    ["nano:6", "bb1:1b.h", "green", ["v0"]]
+  ],
+  "dependencies": {}
+}
