@@ -76,7 +76,7 @@
     {
       "type": "wokwi-pushbutton",
       "id": "btn2",
-      "top": 303.8,
+      "top": 409.4,
       "left": -19.2,
       "attrs": { "color": "green", "label": "-" }
     },
@@ -117,6 +117,13 @@
       "left": 825.05,
       "rotate": 90,
       "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn3",
+      "top": 371,
+      "left": -480,
+      "attrs": { "color": "green", "xray": "1" }
     }
   ],
   "connections": [
@@ -160,7 +167,12 @@
     ["btn2:2.r", "bb1:bn.5", "black", ["h0"]],
     ["btn1:2.r", "bb1:bn.4", "black", ["h0"]],
     ["nano:9", "btn1:1.l", "green", ["v-19.2", "h-105.6", "v144"]],
-    ["nano:10", "btn2:1.l", "green", ["v-48", "h-105.6", "v249.6", "h9.6"]],
+    [
+      "nano:10",
+      "btn2:1.l",
+      "green",
+      ["v-48", "h-105.6", "v249.6", "h76.8", "v124.8"]
+    ],
     ["bz1:1", "bb1:tn.16", "black", ["v57.6", "h96"]],
     ["nano:13", "bz1:2", "green", ["v28.8", "h-172.8", "v-489.6", "h9.6"]],
     ["r1:2", "lcd1:A", "green", ["h0"]],
@@ -170,7 +182,15 @@
     ["temp2:DQ", "bb1:1b.g", "green", ["v0"]],
     ["r2:2", "bb1:1b.i", "green", ["h0"]],
     ["r2:1", "bb1:bp.2", "green", ["h0"]],
-    ["nano:6", "bb1:1b.h", "green", ["v0"]]
+    ["nano:6", "bb1:1b.h", "green", ["v0"]],
+    [
+      "bb1:bn.6",
+      "nano:GND.1",
+      "black",
+      ["v75.5", "h-372.8", "v-57.6", "h-144", "v38.4", "h-48"]
+    ],
+    ["btn3:2.r", "bb1:bn.7", "black", ["h0"]],
+    ["nano:RESET.2", "btn3:1.l", "green", ["v-48", "h-412.8", "v19.2"]]
   ],
   "dependencies": {}
 }

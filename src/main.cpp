@@ -41,7 +41,7 @@ int currentScreen = 0;
 
 unsigned long bothPressStart = 0;
 bool bothPressed = false;
-bool switchingMode = false;
+bool bothHandled = false;
 
 bool lastUpState = HIGH;
 bool lastDownState = HIGH;
@@ -51,19 +51,52 @@ const unsigned long debounceDelay = 50;
 unsigned long lastSensorRead = 0;
 unsigned long lastDisplayUpdate = 0;
 
-// ==================== ФУНКЦИИ ====================
+// ==================== НОТЫ ====================
+#define NOTE_C4  262
+#define NOTE_E4  330
+#define NOTE_G4  392
+#define NOTE_A4  440
+#define NOTE_C5  523
 
-void beep(int ms) {
-  tone(BUZZER_PIN, 1000, ms);
-  delay(ms);
+void playTone(int frequency, int duration) {
+  tone(BUZZER_PIN, frequency, duration);
+  delay(duration + 50);
 }
 
-void beepDouble() {
-  beep(100);
+void playStartupMelody() {
+  playTone(NOTE_C4, 200);
+  playTone(NOTE_E4, 200);
+  playTone(NOTE_G4, 200);
+  playTone(NOTE_C5, 400);
   delay(100);
-  beep(100);
+  playTone(NOTE_G4, 200);
+  playTone(NOTE_E4, 200);
+  playTone(NOTE_C4, 400);
 }
 
+void playPumpOnMelody() {
+  playTone(NOTE_E4, 100);
+  playTone(NOTE_G4, 100);
+  playTone(NOTE_C5, 200);
+}
+
+void playPumpOffMelody() {
+  playTone(NOTE_C5, 100);
+  playTone(NOTE_G4, 100);
+  playTone(NOTE_E4, 200);
+}
+
+void playModeSwitchMelody() {
+  playTone(NOTE_G4, 150);
+  playTone(NOTE_A4, 150);
+  playTone(NOTE_C5, 300);
+}
+
+void beepShort() {
+  playTone(NOTE_C4, 50);
+}
+
+// ==================== ФУНКЦИИ УПРАВЛЕНИЯ ====================
 void changeParameter(bool increment) {
   if (currentMode == AUTO) {
     if (increment) {
@@ -75,7 +108,7 @@ void changeParameter(bool increment) {
     }
     deltaOff = deltaOn - 2.0;
     if (deltaOff < 0.5) deltaOff = 0.5;
-    beep(50);
+    beepShort();
   } else {
     if (increment) {
       targetTemp += 0.5;
@@ -84,13 +117,13 @@ void changeParameter(bool increment) {
       targetTemp -= 0.5;
       if (targetTemp < 18.0) targetTemp = 18.0;
     }
-    beep(50);
+    beepShort();
   }
 }
 
 void switchScreen() {
   currentScreen = (currentScreen + 1) % 2;
-  beep(50);
+  beepShort();
 }
 
 void switchMode() {
@@ -99,12 +132,13 @@ void switchMode() {
   lcd.print(currentMode == AUTO ? "AUTO MODE" : "MANUAL MODE");
   lcd.setCursor(0, 1);
   lcd.print(currentMode == AUTO ? "Delta T control" : "Target temp");
-  beep(500);
+  playModeSwitchMelody();
   delay(1500);
   lcd.clear();
   currentScreen = 0;
 }
 
+// ==================== ОБРАБОТКА КНОПОК ====================
 void handleButtons() {
   bool up = !digitalRead(BUTTON_UP);
   bool down = !digitalRead(BUTTON_DOWN);
@@ -113,18 +147,17 @@ void handleButtons() {
     if (!bothPressed) {
       bothPressed = true;
       bothPressStart = millis();
+      bothHandled = false;
     }
     
-    if (!switchingMode && (millis() - bothPressStart >= 5000)) {
-      switchingMode = true;
+    if (!bothHandled && (millis() - bothPressStart >= 5000)) {
+      bothHandled = true;
       switchMode();
-      switchingMode = false;
-      bothPressed = false;
     }
     return;
   }
   
-  if (!up && !down && bothPressed && !switchingMode) {
+  if (!up && !down && bothPressed && !bothHandled) {
     unsigned long pressDuration = millis() - bothPressStart;
     if (pressDuration < 5000 && pressDuration > debounceDelay) {
       switchScreen();
@@ -134,7 +167,7 @@ void handleButtons() {
   
   if (!up && !down) {
     bothPressed = false;
-    switchingMode = false;
+    bothHandled = false;
   }
   
   if (up && !down && !bothPressed) {
@@ -155,54 +188,134 @@ void handleButtons() {
   lastDownState = down;
 }
 
+// ==================== ОБНОВЛЕНИЕ ДИСПЛЕЯ ====================
 void updateDisplay() {
+  static float lastTempIn = 0, lastTempOut = 0;
+  static float lastDeltaTemp = 0;
+  static float lastTempOutside = 0, lastHumidity = 0;
+  static float lastDeltaOn = 0, lastTargetTemp = 0;
+  static int lastPumpState = -1, lastMode = -1;
+  static int lastScreen = -1;
+  
   if (currentScreen == 0) {
-    lcd.clear();
+    if (lastScreen != 0) {
+      lcd.clear();
+      
+      lcd.setCursor(0, 0);
+      lcd.print("I:");
+      lcd.setCursor(3, 0);
+      lcd.print(tempIn, 1);
+      lcd.setCursor(7, 0);
+      lcd.print("O:");
+      lcd.setCursor(10, 0);
+      lcd.print(tempOut, 1);
+      
+      lcd.setCursor(0, 1);
+      lcd.print(currentMode == AUTO ? "A" : "M");
+      lcd.setCursor(2, 1);
+      lcd.print(pumpState ? "[ON]" : "[OF]");
+      lcd.setCursor(7, 1);
+      lcd.print("dT");
+      lcd.setCursor(10, 1);
+      lcd.print(deltaOn, 0);
+      
+      lastScreen = 0;
+      lastTempIn = lastTempOut = -999;
+      lastDeltaTemp = -999;
+      lastDeltaOn = -999;
+      lastTargetTemp = -999;
+      lastPumpState = -1;
+      lastMode = -1;
+    }
     
-    lcd.setCursor(0, 0);
-    lcd.print("In:");
-    lcd.print(tempIn, 1);
-    lcd.print("C Out:");
-    lcd.print(tempOut, 1);
-    lcd.print("C");
+    if (abs(tempIn - lastTempIn) > 0.05) {
+      lcd.setCursor(3, 0);
+      lcd.print("   ");
+      lcd.setCursor(3, 0);
+      lcd.print(tempIn, 1);
+      lastTempIn = tempIn;
+    }
     
-    lcd.setCursor(0, 1);
+    if (abs(tempOut - lastTempOut) > 0.05) {
+      lcd.setCursor(10, 0);
+      lcd.print("   ");
+      lcd.setCursor(10, 0);
+      lcd.print(tempOut, 1);
+      lastTempOut = tempOut;
+    }
+    
+    if (currentMode != lastMode) {
+      lcd.setCursor(0, 1);
+      lcd.print(currentMode == AUTO ? "A" : "M");
+      lastMode = currentMode;
+    }
+    
+    if (pumpState != lastPumpState) {
+      lcd.setCursor(2, 1);
+      lcd.print(pumpState ? "[ON]" : "[OF]");
+      lastPumpState = pumpState;
+    }
     
     if (currentMode == AUTO) {
-      lcd.print("AUTO ");
-      lcd.print(pumpState ? "ON " : "OFF");
-      lcd.print("dT:");
-      lcd.print(deltaTemp, 1);
-      lcd.print("/");
-      lcd.print(deltaOn, 0);
+      float displayDelta = deltaTemp < 0 ? 0 : deltaTemp;
+      if (abs(displayDelta - lastDeltaTemp) > 0.05) {
+        lcd.setCursor(10, 1);
+        lcd.print("   ");
+        lcd.setCursor(10, 1);
+        lcd.print(displayDelta, 1);
+        lastDeltaTemp = displayDelta;
+      }
+      
+      if (abs(deltaOn - lastDeltaOn) > 0.05) {
+        lcd.setCursor(14, 1);
+        lcd.print(" ");
+        lcd.setCursor(14, 1);
+        lcd.print(deltaOn, 0);
+        lastDeltaOn = deltaOn;
+      }
     } else {
-      lcd.print("MANUAL ");
-      lcd.print(pumpState ? "ON " : "OFF");
-      lcd.print("T:");
-      lcd.print(tempIn, 1);
-      lcd.print("/");
-      lcd.print(targetTemp, 0);
+      if (abs(targetTemp - lastTargetTemp) > 0.05) {
+        lcd.setCursor(10, 1);
+        lcd.print("   ");
+        lcd.setCursor(10, 1);
+        lcd.print(targetTemp, 0);
+        lastTargetTemp = targetTemp;
+      }
     }
   } 
   else {
-    lcd.clear();
-    
-    lcd.setCursor(0, 0);
-    lcd.print("Outside: ");
-    if (tempOutside > -100) {
+    if (lastScreen != 1) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Out:");
+      lcd.setCursor(5, 0);
       lcd.print(tempOutside, 1);
-      lcd.print("C");
-    } else {
-      lcd.print("ERROR");
+      lcd.setCursor(0, 1);
+      lcd.print("Hum:");
+      lcd.setCursor(5, 1);
+      lcd.print(humidity, 0);
+      lcd.setCursor(9, 1);
+      lcd.print("%");
+      
+      lastScreen = 1;
+      lastTempOutside = -999;
+      lastHumidity = -999;
     }
     
-    lcd.setCursor(0, 1);
-    lcd.print("Humidity: ");
-    if (humidity > 0) {
+    if (abs(tempOutside - lastTempOutside) > 0.1 && tempOutside > -100) {
+      lcd.setCursor(5, 0);
+      lcd.print("    ");
+      lcd.setCursor(5, 0);
+      lcd.print(tempOutside, 1);
+      lastTempOutside = tempOutside;
+    }
+    
+    if (abs(humidity - lastHumidity) > 0.5 && humidity > 0) {
+      lcd.setCursor(5, 1);
+      lcd.print("   ");
+      lcd.setCursor(5, 1);
       lcd.print(humidity, 0);
-      lcd.print("%");
-    } else {
-      lcd.print("ERROR");
+      lastHumidity = humidity;
     }
   }
 }
@@ -210,7 +323,6 @@ void updateDisplay() {
 // ==================== SETUP ====================
 void setup() {
   lcd.begin(16, 2);
-  Serial.begin(9600);
   
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(BUTTON_UP, INPUT_PULLUP);
@@ -222,26 +334,14 @@ void setup() {
   ds18b20.begin();
   dht.begin();
   
-  // Диагностика DS18B20
-  int deviceCount = ds18b20.getDeviceCount();
-  Serial.print("Found ");
-  Serial.print(deviceCount);
-  Serial.println(" DS18B20 sensors");
-  
-  if (deviceCount == 0) {
-    lcd.clear();
-    lcd.print("No DS18B20!");
-    while(1); // остановка
-  }
-  
-  lcd.print("Solar Pool Heater");
+  lcd.print("Pool Heater");
   lcd.setCursor(0, 1);
   lcd.print("Summer Edition");
   delay(2000);
   
   lcd.clear();
   
-  beep(200);
+  playStartupMelody();
 }
 
 // ==================== LOOP ====================
@@ -251,12 +351,6 @@ void loop() {
     tempIn = ds18b20.getTempCByIndex(0);
     tempOut = ds18b20.getTempCByIndex(1);
     deltaTemp = tempOut - tempIn;
-    
-    // Диагностика в Serial Monitor
-    Serial.print("In: ");
-    Serial.print(tempIn);
-    Serial.print(" Out: ");
-    Serial.println(tempOut);
     
     tempOutside = dht.readTemperature();
     humidity = dht.readHumidity();
@@ -273,23 +367,23 @@ void loop() {
     if (!pumpState && deltaTemp >= deltaOn) {
       pumpState = true;
       digitalWrite(RELAY_PIN, HIGH);
-      beep(100);
+      playPumpOnMelody();
     }
     else if (pumpState && deltaTemp <= deltaOff) {
       pumpState = false;
       digitalWrite(RELAY_PIN, LOW);
-      beep(100);
+      playPumpOffMelody();
     }
   } else {
     if (!pumpState && tempIn < targetTemp - manualHysteresis) {
       pumpState = true;
       digitalWrite(RELAY_PIN, HIGH);
-      beepDouble();
+      playPumpOnMelody();
     }
     else if (pumpState && tempIn >= targetTemp) {
       pumpState = false;
       digitalWrite(RELAY_PIN, LOW);
-      beepDouble();
+      playPumpOffMelody();
     }
   }
   
