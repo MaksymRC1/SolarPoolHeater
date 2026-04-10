@@ -39,19 +39,27 @@ bool pumpState = false;
 
 int currentScreen = 0;
 
+// Переменные для одновременного нажатия
 unsigned long bothPressStart = 0;
 bool bothPressed = false;
 bool bothHandled = false;
 
+// Переменные для отдельных кнопок
 bool lastUpState = HIGH;
 bool lastDownState = HIGH;
 unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 50;
 
+// Переменные для Hard Manual режима
+bool hardManualMode = false;
+bool hardManualPumpState = false;
+unsigned long hardManualPressStart = 0;
+bool hardManualPressed = false;
+
 unsigned long lastSensorRead = 0;
 unsigned long lastDisplayUpdate = 0;
 
-// ==================== НОТЫ ====================
+// ==================== НОТЫ ДЛЯ ЗУММЕРА ====================
 #define NOTE_C4  262
 #define NOTE_E4  330
 #define NOTE_G4  392
@@ -90,6 +98,12 @@ void playModeSwitchMelody() {
   playTone(NOTE_G4, 150);
   playTone(NOTE_A4, 150);
   playTone(NOTE_C5, 300);
+}
+
+void playErrorMelody() {
+  playTone(NOTE_G4, 200);
+  playTone(NOTE_E4, 200);
+  playTone(NOTE_C4, 400);
 }
 
 void beepShort() {
@@ -143,6 +157,64 @@ void handleButtons() {
   bool up = !digitalRead(BUTTON_UP);
   bool down = !digitalRead(BUTTON_DOWN);
   
+  // ========== HARD MANUAL MODE (принудительное управление) ==========
+  if (hardManualMode) {
+    static unsigned long lastHardDisplay = 0;
+    if (millis() - lastHardDisplay > 500) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("HARD MANUAL");
+      lcd.setCursor(0, 1);
+      lcd.print(hardManualPumpState ? "PUMP: ON " : "PUMP: OFF");
+      lastHardDisplay = millis();
+    }
+    return;
+  }
+  
+  // Проверка на вход в Hard Manual (долгое нажатие "+" 5 сек)
+  if (up && !down) {
+    if (!hardManualPressed) {
+      hardManualPressed = true;
+      hardManualPressStart = millis();
+    }
+    
+    if (!hardManualMode && (millis() - hardManualPressStart >= 5000)) {
+      hardManualMode = true;
+      hardManualPumpState = true;
+      digitalWrite(RELAY_PIN, HIGH);
+      playModeSwitchMelody();
+      lcd.clear();
+      lcd.print("HARD MANUAL");
+      lcd.setCursor(0, 1);
+      lcd.print("PUMP: ON ");
+      delay(1500);
+      return;
+    }
+  }
+  // Проверка на вход в Hard Manual (долгое нажатие "-" 5 сек)
+  else if (down && !up) {
+    if (!hardManualPressed) {
+      hardManualPressed = true;
+      hardManualPressStart = millis();
+    }
+    
+    if (!hardManualMode && (millis() - hardManualPressStart >= 5000)) {
+      hardManualMode = true;
+      hardManualPumpState = false;
+      digitalWrite(RELAY_PIN, LOW);
+      playErrorMelody();
+      lcd.clear();
+      lcd.print("HARD MANUAL");
+      lcd.setCursor(0, 1);
+      lcd.print("PUMP: OFF");
+      delay(1500);
+      return;
+    }
+  } else {
+    hardManualPressed = false;
+  }
+  
+  // ========== ОБЕ КНОПКИ НАЖАТЫ ==========
   if (up && down) {
     if (!bothPressed) {
       bothPressed = true;
@@ -157,6 +229,7 @@ void handleButtons() {
     return;
   }
   
+  // ========== КНОПКИ ОТПУЩЕНЫ ==========
   if (!up && !down && bothPressed && !bothHandled) {
     unsigned long pressDuration = millis() - bothPressStart;
     if (pressDuration < 5000 && pressDuration > debounceDelay) {
@@ -170,6 +243,7 @@ void handleButtons() {
     bothHandled = false;
   }
   
+  // ========== ОТДЕЛЬНЫЕ КНОПКИ ==========
   if (up && !down && !bothPressed) {
     if (!lastUpState && (millis() - lastDebounceTime > debounceDelay)) {
       changeParameter(true);
@@ -197,26 +271,32 @@ void updateDisplay() {
   static int lastPumpState = -1, lastMode = -1;
   static int lastScreen = -1;
   
+  if (hardManualMode) return;
+  
   if (currentScreen == 0) {
     if (lastScreen != 0) {
       lcd.clear();
       
       lcd.setCursor(0, 0);
-      lcd.print("I:");
+      lcd.print("In:");
       lcd.setCursor(3, 0);
       lcd.print(tempIn, 1);
       lcd.setCursor(7, 0);
-      lcd.print("O:");
-      lcd.setCursor(10, 0);
+      lcd.print("Out:");
+      lcd.setCursor(11, 0);
       lcd.print(tempOut, 1);
       
       lcd.setCursor(0, 1);
       lcd.print(currentMode == AUTO ? "A" : "M");
-      lcd.setCursor(2, 1);
-      lcd.print(pumpState ? "[ON]" : "[OF]");
-      lcd.setCursor(7, 1);
+      lcd.setCursor(1, 1);
+      lcd.print(pumpState ? "[ON]" : "[OFF]");
+      lcd.setCursor(6, 1);
       lcd.print("dT");
-      lcd.setCursor(10, 1);
+      lcd.setCursor(8, 1);
+      lcd.print(deltaTemp < 0 ? 0 : deltaTemp, 1);
+      lcd.setCursor(12, 1);
+      lcd.print("/");
+      lcd.setCursor(13, 1);
       lcd.print(deltaOn, 0);
       
       lastScreen = 0;
@@ -237,9 +317,9 @@ void updateDisplay() {
     }
     
     if (abs(tempOut - lastTempOut) > 0.05) {
-      lcd.setCursor(10, 0);
+      lcd.setCursor(11, 0);
       lcd.print("   ");
-      lcd.setCursor(10, 0);
+      lcd.setCursor(11, 0);
       lcd.print(tempOut, 1);
       lastTempOut = tempOut;
     }
@@ -251,33 +331,33 @@ void updateDisplay() {
     }
     
     if (pumpState != lastPumpState) {
-      lcd.setCursor(2, 1);
-      lcd.print(pumpState ? "[ON]" : "[OF]");
+      lcd.setCursor(1, 1);
+      lcd.print(pumpState ? "[ON]" : "[OFF]");
       lastPumpState = pumpState;
     }
     
     if (currentMode == AUTO) {
       float displayDelta = deltaTemp < 0 ? 0 : deltaTemp;
       if (abs(displayDelta - lastDeltaTemp) > 0.05) {
-        lcd.setCursor(10, 1);
+        lcd.setCursor(8, 1);
         lcd.print("   ");
-        lcd.setCursor(10, 1);
+        lcd.setCursor(8, 1);
         lcd.print(displayDelta, 1);
         lastDeltaTemp = displayDelta;
       }
       
       if (abs(deltaOn - lastDeltaOn) > 0.05) {
-        lcd.setCursor(14, 1);
+        lcd.setCursor(13, 1);
         lcd.print(" ");
-        lcd.setCursor(14, 1);
+        lcd.setCursor(13, 1);
         lcd.print(deltaOn, 0);
         lastDeltaOn = deltaOn;
       }
     } else {
       if (abs(targetTemp - lastTargetTemp) > 0.05) {
-        lcd.setCursor(10, 1);
+        lcd.setCursor(8, 1);
         lcd.print("   ");
-        lcd.setCursor(10, 1);
+        lcd.setCursor(8, 1);
         lcd.print(targetTemp, 0);
         lastTargetTemp = targetTemp;
       }
@@ -288,13 +368,15 @@ void updateDisplay() {
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Out:");
-      lcd.setCursor(5, 0);
+      lcd.setCursor(4, 0);
       lcd.print(tempOutside, 1);
+      lcd.setCursor(9, 0);
+      lcd.print("C");
       lcd.setCursor(0, 1);
       lcd.print("Hum:");
-      lcd.setCursor(5, 1);
+      lcd.setCursor(4, 1);
       lcd.print(humidity, 0);
-      lcd.setCursor(9, 1);
+      lcd.setCursor(8, 1);
       lcd.print("%");
       
       lastScreen = 1;
@@ -303,17 +385,17 @@ void updateDisplay() {
     }
     
     if (abs(tempOutside - lastTempOutside) > 0.1 && tempOutside > -100) {
-      lcd.setCursor(5, 0);
+      lcd.setCursor(4, 0);
       lcd.print("    ");
-      lcd.setCursor(5, 0);
+      lcd.setCursor(4, 0);
       lcd.print(tempOutside, 1);
       lastTempOutside = tempOutside;
     }
     
     if (abs(humidity - lastHumidity) > 0.5 && humidity > 0) {
-      lcd.setCursor(5, 1);
+      lcd.setCursor(4, 1);
       lcd.print("   ");
-      lcd.setCursor(5, 1);
+      lcd.setCursor(4, 1);
       lcd.print(humidity, 0);
       lastHumidity = humidity;
     }
@@ -363,6 +445,13 @@ void loop() {
   
   handleButtons();
   
+  // Если в режиме Hard Manual — блокируем обычную логику
+  if (hardManualMode) {
+    delay(100);
+    return;
+  }
+  
+  // ========== ОБЫЧНАЯ ЛОГИКА УПРАВЛЕНИЯ ==========
   if (currentMode == AUTO) {
     if (!pumpState && deltaTemp >= deltaOn) {
       pumpState = true;
